@@ -17,8 +17,8 @@ public class GamePanel extends JPanel implements ActionListener {
     final int y[] = new int[GAME_UNITS];
     int bodyParts = 1;
     int applesEaten = 0;
-    int applex;
-    int appley;
+    int appleX;
+    int appleY;
     char direction = 'R';
     boolean running = false;
     Timer timer;
@@ -56,7 +56,7 @@ public class GamePanel extends JPanel implements ActionListener {
             */
 
            graphics.setColor(Color.red);
-           graphics.fillOval(applex,appley,UNIT_SIZE,UNIT_SIZE);
+           graphics.fillOval(appleX, appleY,UNIT_SIZE,UNIT_SIZE);
 
            for (int i = 0; i < bodyParts; i++){
                if (i == 0){
@@ -79,8 +79,8 @@ public class GamePanel extends JPanel implements ActionListener {
        }
     }
     public void newAplle(){
-        applex = random.nextInt((int) (SCREEN_WIDTH/UNIT_SIZE))*UNIT_SIZE;
-        appley = random.nextInt((int) (SCREEN_HEIGHT/UNIT_SIZE))*UNIT_SIZE;
+        appleX = random.nextInt((int) (SCREEN_WIDTH/UNIT_SIZE))*UNIT_SIZE;
+        appleY = random.nextInt((int) (SCREEN_HEIGHT/UNIT_SIZE))*UNIT_SIZE;
     }
     public void move(){
         for (int i = bodyParts; i > 0; i--){
@@ -95,7 +95,7 @@ public class GamePanel extends JPanel implements ActionListener {
         }
     }
     public void checkApple(){
-        if ((x[0] == applex && y[0] == appley)){
+        if ((x[0] == appleX && y[0] == appleY)){
             bodyParts++;
             applesEaten++;
             newAplle();

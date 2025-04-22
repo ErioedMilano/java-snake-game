@@ -70,7 +70,7 @@ public class GamePanel extends JPanel implements ActionListener {
                }
            }
            graphics.setColor(Color.red);
-           graphics.setFont(new Font("Bradley Hand",Font.BOLD,40));
+           graphics.setFont(new Font("Monospaced",Font.BOLD,40));
            FontMetrics metrics = getFontMetrics(graphics.getFont());
            graphics.drawString("Score: " + applesEaten,(SCREEN_WIDTH -metrics.stringWidth("Score: " + applesEaten))/2,graphics.getFont().getSize());
        }

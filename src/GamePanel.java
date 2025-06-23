@@ -4,6 +4,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.*;
 import java.util.Random;
 
 public class GamePanel extends JPanel implements ActionListener {
@@ -24,64 +25,171 @@ public class GamePanel extends JPanel implements ActionListener {
     Timer timer;
     Random random;
 
+    // Game states
+    enum GameState { MENU, RUNNING, GAME_OVER }
+    private GameState state = GameState.MENU;
+
+    // Menu items
+    private final String[] menuItems = {"START GAME", "EXIT"};
+    private int currentMenuItem = 0;
+
+    // Highscore
+    private int highScore = 0;
+    private static final String HIGHSCORE_FILE = "highscore.dat";
 
     GamePanel(){
         random = new Random();
-        this.setPreferredSize(new Dimension(SCREEN_WIDTH,SCREEN_HEIGHT));
-        this.setBackground(Color.black);
+        this.setPreferredSize(new Dimension(SCREEN_WIDTH, SCREEN_HEIGHT));
+        this.setBackground(new Color(20, 20, 30));
         this.setFocusable(true);
-        this.addKeyListener(new MykeyAdapter());
-        startGame();
+        this.addKeyListener(new MyKeyAdapter());
+        timer = new Timer(DELAY, this);
+
+        // Load highscore
+        loadHighScore();
     }
+
     public void startGame(){
-        newAplle();
+        resetGame();
+        state = GameState.RUNNING;
         running = true;
-        timer = new Timer(DELAY,this);
         timer.start();
-
     }
-    public void paintComponent(Graphics graphics){
-        super.paintComponent(graphics);
-        draw(graphics);
+
+    public void resetGame() {
+        bodyParts = 1;
+        applesEaten = 0;
+        direction = 'R';
+        running = true;
+
+        // Start in the center
+        x[0] = SCREEN_WIDTH / 2;
+        y[0] = SCREEN_HEIGHT / 2;
+
+        newApple();
     }
-    public void draw(Graphics graphics){
 
-       if (running){
-
-           /*
-           for (int i = 0; i < SCREEN_HEIGHT/UNIT_SIZE; i++){
-               graphics.drawLine(i*UNIT_SIZE,0,i*UNIT_SIZE,SCREEN_HEIGHT);
-               graphics.drawLine(0,i*UNIT_SIZE,SCREEN_WIDTH,i*UNIT_SIZE);
-           }
-            */
-
-           graphics.setColor(Color.red);
-           graphics.fillOval(appleX, appleY,UNIT_SIZE,UNIT_SIZE);
-
-           for (int i = 0; i < bodyParts; i++){
-               if (i == 0){
-                   graphics.setColor(Color.GREEN);
-                   graphics.fillRect(x[i],y[i],UNIT_SIZE,UNIT_SIZE);
-               }
-               else {
-                   graphics.setColor(new Color(45,180,0));
-                   graphics.setColor(new Color(random.nextInt(255),random.nextInt(255),random.nextInt(255)));
-                   graphics.fillRect(x[i],y[i],UNIT_SIZE,UNIT_SIZE);
-               }
-           }
-           graphics.setColor(Color.red);
-           graphics.setFont(new Font("Monospaced",Font.BOLD,40));
-           FontMetrics metrics = getFontMetrics(graphics.getFont());
-           graphics.drawString("Score: " + applesEaten,(SCREEN_WIDTH -metrics.stringWidth("Score: " + applesEaten))/2,graphics.getFont().getSize());
-       }
-       else {
-           gameOver(graphics);
-       }
+    public void newApple(){
+        appleX = random.nextInt((int) (SCREEN_WIDTH/UNIT_SIZE)) * UNIT_SIZE;
+        appleY = random.nextInt((int) (SCREEN_HEIGHT/UNIT_SIZE)) * UNIT_SIZE;
     }
-    public void newAplle(){
-        appleX = random.nextInt((int) (SCREEN_WIDTH/UNIT_SIZE))*UNIT_SIZE;
-        appleY = random.nextInt((int) (SCREEN_HEIGHT/UNIT_SIZE))*UNIT_SIZE;
+
+    public void paintComponent(Graphics g){
+        super.paintComponent(g);
+
+        switch(state) {
+            case MENU:
+                drawMenu(g);
+                break;
+            case RUNNING:
+                drawGame(g);
+                break;
+            case GAME_OVER:
+                drawGameOver(g);
+                break;
+        }
     }
+
+    private void drawMenu(Graphics g) {
+        // Title
+        g.setColor(new Color(50, 200, 100));
+        g.setFont(new Font("Monospaced", Font.BOLD, 70));
+        FontMetrics titleMetrics = g.getFontMetrics();
+        String title = "SNAKE GAME";
+        g.drawString(title, (SCREEN_WIDTH - titleMetrics.stringWidth(title)) / 2, 150);
+
+        // Menu items
+        g.setFont(new Font("Monospaced", Font.BOLD, 40));
+        FontMetrics menuMetrics = g.getFontMetrics();
+
+        for (int i = 0; i < menuItems.length; i++) {
+            if (i == currentMenuItem) {
+                g.setColor(new Color(255, 215, 0)); // Gold for selected
+            } else {
+                g.setColor(new Color(180, 180, 180)); // Gray for others
+            }
+            String item = menuItems[i];
+            g.drawString(item, (SCREEN_WIDTH - menuMetrics.stringWidth(item)) / 2, 300 + i * 60);
+        }
+
+        // Highscore
+        g.setColor(new Color(100, 200, 255));
+        g.setFont(new Font("Monospaced", Font.BOLD, 30));
+        String highScoreText = "HIGHSCORE: " + highScore;
+        FontMetrics hsMetrics = g.getFontMetrics();
+        g.drawString(highScoreText, (SCREEN_WIDTH - hsMetrics.stringWidth(highScoreText)) / 2, 500);
+
+        // Instructions
+        g.setColor(new Color(150, 150, 150));
+        g.setFont(new Font("Monospaced", Font.PLAIN, 18));
+        String instructions = "Use UP/DOWN arrows to navigate, ENTER to select";
+        FontMetrics instrMetrics = g.getFontMetrics();
+        g.drawString(instructions, (SCREEN_WIDTH - instrMetrics.stringWidth(instructions)) / 2, 550);
+    }
+
+    private void drawGame(Graphics g) {
+        // Background grid
+        g.setColor(new Color(40, 40, 50));
+        for (int i = 0; i < SCREEN_HEIGHT/UNIT_SIZE; i++){
+            g.drawLine(i*UNIT_SIZE, 0, i*UNIT_SIZE, SCREEN_HEIGHT);
+            g.drawLine(0, i*UNIT_SIZE, SCREEN_WIDTH, i*UNIT_SIZE);
+        }
+
+        // Apple
+        g.setColor(new Color(255, 50, 50));
+        g.fillOval(appleX, appleY, UNIT_SIZE, UNIT_SIZE);
+
+        // Snake
+        for (int i = 0; i < bodyParts; i++){
+            if (i == 0){
+                g.setColor(new Color(50, 200, 100)); // Head
+            } else {
+                g.setColor(new Color(45, 180, 0)); // Body
+            }
+            g.fillRect(x[i], y[i], UNIT_SIZE, UNIT_SIZE);
+
+            // Snake border
+            g.setColor(new Color(30, 30, 40));
+            g.drawRect(x[i], y[i], UNIT_SIZE, UNIT_SIZE);
+        }
+
+        // Score
+        g.setColor(new Color(255, 215, 0));
+        g.setFont(new Font("Monospaced", Font.BOLD, 40));
+        FontMetrics metrics = getFontMetrics(g.getFont());
+        g.drawString("Score: " + applesEaten, (SCREEN_WIDTH - metrics.stringWidth("Score: " + applesEaten)) / 2, 40);
+    }
+
+    private void drawGameOver(Graphics g) {
+        // Game Over text
+        g.setColor(new Color(200, 50, 50));
+        g.setFont(new Font("Monospaced", Font.BOLD, 75));
+        FontMetrics gameOverMetrics = g.getFontMetrics();
+        String gameOverText = "GAME OVER";
+        g.drawString(gameOverText, (SCREEN_WIDTH - gameOverMetrics.stringWidth(gameOverText)) / 2, SCREEN_HEIGHT / 2 - 50);
+
+        // Score
+        g.setColor(new Color(255, 215, 0));
+        g.setFont(new Font("Monospaced", Font.BOLD, 50));
+        FontMetrics scoreMetrics = g.getFontMetrics();
+        String scoreText = "Score: " + applesEaten;
+        g.drawString(scoreText, (SCREEN_WIDTH - scoreMetrics.stringWidth(scoreText)) / 2, SCREEN_HEIGHT / 2 + 50);
+
+        // Highscore
+        g.setColor(new Color(100, 200, 255));
+        g.setFont(new Font("Monospaced", Font.BOLD, 40));
+        String highScoreText = "Highscore: " + highScore;
+        FontMetrics hsMetrics = g.getFontMetrics();
+        g.drawString(highScoreText, (SCREEN_WIDTH - hsMetrics.stringWidth(highScoreText)) / 2, SCREEN_HEIGHT / 2 + 120);
+
+        // Restart instruction
+        g.setColor(new Color(180, 180, 180));
+        g.setFont(new Font("Monospaced", Font.PLAIN, 25));
+        String restartText = "Press SPACE to return to menu";
+        FontMetrics restartMetrics = g.getFontMetrics();
+        g.drawString(restartText, (SCREEN_WIDTH - restartMetrics.stringWidth(restartText)) / 2, SCREEN_HEIGHT / 2 + 200);
+    }
+
     public void move(){
         for (int i = bodyParts; i > 0; i--){
             x[i] = x[i-1];
@@ -94,90 +202,130 @@ public class GamePanel extends JPanel implements ActionListener {
             case 'R' -> x[0] = x[0] + UNIT_SIZE;
         }
     }
+
     public void checkApple(){
         if ((x[0] == appleX && y[0] == appleY)){
             bodyParts++;
             applesEaten++;
-            newAplle();
+            newApple();
         }
     }
-    public void checkCollisions(){
 
-        //This checks if head collides with body
-        for (int i = bodyParts; i > 0;i--){
+    public void checkCollisions(){
+        // Check if head collides with body
+        for (int i = bodyParts; i > 0; i--){
             if ((x[0] == x[i] && y[0] == y[i])){
                 running = false;
             }
         }
-        //Checks if head touches left border
-        if (x[0] < 0){
-            running =false;
-        }
-        //Checks if head touches right border
-        if (x[0] > SCREEN_WIDTH){
+
+        // Check border collisions
+        if (x[0] < 0 || x[0] >= SCREEN_WIDTH || y[0] < 0 || y[0] >= SCREEN_HEIGHT){
             running = false;
         }
-        //Checks if head touches top border
-        if (y[0] < 0){
-            running = false;
-        }
-        //Checks if head touches bottom border
-        if (y[0] > SCREEN_HEIGHT){
-            running = false;
-        }
+
         if (!running){
             timer.stop();
+            state = GameState.GAME_OVER;
+
+            // Update highscore
+            if (applesEaten > highScore) {
+                highScore = applesEaten;
+                saveHighScore();
+            }
         }
     }
-    public void gameOver(Graphics graphics){
 
-        //Score
-        graphics.setColor(Color.red);
-        graphics.setFont(new Font("Lucida Handwriting",Font.BOLD,40));
-        FontMetrics metrics1 = getFontMetrics(graphics.getFont());
-        graphics.drawString("Score: " + applesEaten,(SCREEN_WIDTH -metrics1.stringWidth("Score: " + applesEaten))/2,graphics.getFont().getSize());
-        //GameOver text
-        graphics.setColor(Color.red);
-        graphics.setFont(new Font("Bradley Hand",Font.BOLD,75));
-        FontMetrics metrics2 = getFontMetrics(graphics.getFont());
-        graphics.drawString("GAME OVER",(SCREEN_WIDTH -metrics2.stringWidth("Game over"))/2,SCREEN_HEIGHT/2);
+    private void loadHighScore() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(HIGHSCORE_FILE))) {
+            highScore = (int) ois.readObject();
+        } catch (FileNotFoundException e) {
+            // First run, no highscore yet
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void saveHighScore() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(HIGHSCORE_FILE))) {
+            oos.writeObject(highScore);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-
-        if (running){
+        if (running) {
             move();
             checkApple();
             checkCollisions();
         }
         repaint();
     }
-    public class MykeyAdapter extends KeyAdapter{
 
+    public class MyKeyAdapter extends KeyAdapter {
         @Override
-        public void keyPressed(KeyEvent event){
-            switch (event.getKeyCode()){
-                case KeyEvent.VK_LEFT -> {
-                    if (direction != 'R'){
-                        direction = 'L';
-                    }
+        public void keyPressed(KeyEvent e) {
+            switch (state) {
+                case MENU:
+                    handleMenuInput(e);
+                    break;
+                case RUNNING:
+                    handleGameInput(e);
+                    break;
+                case GAME_OVER:
+                    handleGameOverInput(e);
+                    break;
+            }
+        }
+
+        private void handleMenuInput(KeyEvent e) {
+            int key = e.getKeyCode();
+
+            if (key == KeyEvent.VK_UP) {
+                currentMenuItem = (currentMenuItem - 1 + menuItems.length) % menuItems.length;
+                repaint();
+            } else if (key == KeyEvent.VK_DOWN) {
+                currentMenuItem = (currentMenuItem + 1) % menuItems.length;
+                repaint();
+            } else if (key == KeyEvent.VK_ENTER) {
+                if (currentMenuItem == 0) {
+                    startGame();
+                } else if (currentMenuItem == 1) {
+                    System.exit(0);
                 }
-                case KeyEvent.VK_RIGHT -> {
-                    if (direction != 'L'){
-                        direction = 'R';
-                    }
-                }
-                case KeyEvent.VK_UP -> {
-                    if (direction != 'D'){
-                        direction = 'U';
-                    }
-                }
-                case KeyEvent.VK_DOWN -> {
-                    if (direction != 'U'){
-                        direction = 'D';
-                    }
-                }
+            }
+        }
+
+        private void handleGameInput(KeyEvent e) {
+            int key = e.getKeyCode();
+
+            switch (key) {
+                case KeyEvent.VK_LEFT:
+                    if (direction != 'R') direction = 'L';
+                    break;
+                case KeyEvent.VK_RIGHT:
+                    if (direction != 'L') direction = 'R';
+                    break;
+                case KeyEvent.VK_UP:
+                    if (direction != 'D') direction = 'U';
+                    break;
+                case KeyEvent.VK_DOWN:
+                    if (direction != 'U') direction = 'D';
+                    break;
+                case KeyEvent.VK_ESCAPE:
+                    state = GameState.MENU;
+                    timer.stop();
+                    repaint();
+                    break;
+            }
+        }
+
+        private void handleGameOverInput(KeyEvent e) {
+            if (e.getKeyCode() == KeyEvent.VK_SPACE) {
+                state = GameState.MENU;
+                repaint();
             }
         }
     }

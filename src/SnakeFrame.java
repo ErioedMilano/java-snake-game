@@ -1,8 +1,8 @@
 import javax.swing.*;
 
-public class GameFrame extends JFrame {
+public class SnakeFrame extends JFrame {
 
-    GameFrame(){
+    SnakeFrame(){
         GamePanel panel = new GamePanel();
 
         this.add(panel);
